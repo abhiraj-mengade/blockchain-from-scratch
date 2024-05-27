@@ -58,7 +58,45 @@ impl StateMachine for Atm {
     type Transition = Action;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 4")
+        match t {
+            Action::SwipeCard(pin) => Atm {
+                cash_inside: starting_state.cash_inside,
+                expected_pin_hash: Auth::Authenticating(*pin),
+                keystroke_register: starting_state.keystroke_register.clone(),
+            },
+            Action::PressKey(key) => match key {
+                Key::Enter => {
+                    let entered_pin = starting_state.keystroke_register.clone();
+                    let hash = crate::hash(&entered_pin);
+                    if starting_state.expected_pin_hash != Auth::Waiting
+                        && starting_state.expected_pin_hash == Auth::Authenticating(hash)
+                    {
+                        Atm {
+                            cash_inside: starting_state.cash_inside,
+                            expected_pin_hash: Auth::Authenticated,
+                            keystroke_register: Vec::new(),
+                        }
+                    } else {
+                        Atm {
+                            cash_inside: starting_state.cash_inside,
+                            expected_pin_hash: Auth::Waiting,
+                            keystroke_register: Vec::new(),
+                        }
+                    }
+                }
+                _ => {
+                    let mut new_keystroke_register = starting_state.keystroke_register.clone();
+                    if starting_state.expected_pin_hash != Auth::Waiting {
+                        new_keystroke_register.push(key.clone());
+                    }
+                    Atm {
+                        cash_inside: starting_state.cash_inside,
+                        expected_pin_hash: starting_state.expected_pin_hash.clone(),
+                        keystroke_register: new_keystroke_register,
+                    }
+                }
+            },
+        }
     }
 }
 
