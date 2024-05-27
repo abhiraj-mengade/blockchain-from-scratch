@@ -94,7 +94,75 @@ impl StateMachine for DigitalCashSystem {
     type Transition = CashTransaction;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 1")
+        match t {
+            CashTransaction::Mint { minter, amount } => {
+                let mut new_state = starting_state.clone();
+                let new_bill = Bill {
+                    owner: minter.clone(),
+                    amount: *amount,
+                    serial: starting_state.next_serial(),
+                };
+                new_state.add_bill(new_bill);
+                new_state
+            }
+            CashTransaction::Transfer { spends, receives } => {
+                let spend_total = spends.iter().map(|b| b.amount).sum::<u64>();
+
+                // check for overflow
+                for receive in receives {
+                    if receive.amount > spend_total {
+                        return starting_state.clone();
+                    }
+                }
+                let receive_total = receives.iter().map(|b| b.amount).sum::<u64>();
+                let seen_serials = starting_state
+                    .bills
+                    .iter()
+                    .map(|b| b.serial)
+                    .collect::<HashSet<_>>();
+
+                // check for duplicates
+                let mut seen = HashSet::new();
+                for i in spends {
+                    if !seen.insert(i.serial) {
+                        return starting_state.clone();
+                    }
+                }
+
+                // check that receive serials are not serial from state
+                let max_serial = starting_state.next_serial();
+                let max_new_serial = max_serial + receives.len() as u64;
+                for i in receives {
+                    if i.serial > max_new_serial
+                        || i.amount == 0
+                        || seen_serials.contains(&i.serial)
+                    {
+                        return starting_state.clone();
+                    }
+                }
+
+                // check that spends are in state
+                for i in spends {
+                    if !starting_state.bills.contains(i) || receives.contains(i) {
+                        return starting_state.clone();
+                    }
+                }
+
+                // check that spend total is greater than or equal to receive total
+                if spend_total < receive_total {
+                    return starting_state.clone();
+                }
+
+                let mut new_state = starting_state.clone();
+                for spend in spends {
+                    new_state.bills.remove(spend);
+                }
+                for receive in receives {
+                    new_state.add_bill(receive.clone());
+                }
+                new_state
+            }
+        }
     }
 }
 

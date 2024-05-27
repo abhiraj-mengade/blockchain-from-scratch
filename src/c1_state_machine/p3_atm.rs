@@ -76,6 +76,30 @@ impl StateMachine for Atm {
                             expected_pin_hash: Auth::Authenticated,
                             keystroke_register: Vec::new(),
                         }
+                    } else if starting_state.expected_pin_hash == Auth::Authenticated {
+                        let withdraw_amount = starting_state.keystroke_register.iter().fold(
+                            0,
+                            |acc, key| match key {
+                                Key::One => acc * 10 + 1,
+                                Key::Two => acc * 10 + 2,
+                                Key::Three => acc * 10 + 3,
+                                Key::Four => acc * 10 + 4,
+                                _ => acc,
+                            },
+                        );
+                        if withdraw_amount <= starting_state.cash_inside {
+                            Atm {
+                                cash_inside: starting_state.cash_inside - withdraw_amount,
+                                expected_pin_hash: Auth::Waiting,
+                                keystroke_register: Vec::new(),
+                            }
+                        } else {
+                            Atm {
+                                cash_inside: starting_state.cash_inside,
+                                expected_pin_hash: Auth::Waiting,
+                                keystroke_register: Vec::new(),
+                            }
+                        }
                     } else {
                         Atm {
                             cash_inside: starting_state.cash_inside,

@@ -47,6 +47,9 @@ impl StateMachine for AccountedCurrency {
     fn next_state(starting_state: &Balances, t: &AccountingTransaction) -> Balances {
         match t {
             AccountingTransaction::Mint { minter, amount } => {
+                if *amount == 0 {
+                    return starting_state.clone();
+                }
                 let mut next_state = starting_state.clone();
                 let balance = next_state.entry(*minter).or_insert(0);
                 *balance += amount;
@@ -69,7 +72,10 @@ impl StateMachine for AccountedCurrency {
                 amount,
             } => {
                 let mut next_state = starting_state.clone();
-                let sender_balance = next_state.entry(*sender).or_insert(0);
+                if (next_state.contains_key(sender) == false) {
+                    return next_state;
+                }
+                let sender_balance = next_state.get_mut(sender).unwrap();
                 if *sender_balance >= *amount {
                     *sender_balance -= amount;
                     if (*sender_balance) == 0 {
